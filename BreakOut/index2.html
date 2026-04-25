@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Breakout Game Level 2</title>
+    <style>
+        body{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas{
+            border: 5px solid black;
+            background-image: url(star.jpg);
+            background-size: cover;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas" width="380" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+var width = canvas.width;
+var height = canvas.height;
+
+// Платформа
+var paddle = {
+    width: 80,
+    height: 10,
+    x: width / 2 - 40,
+    y: height - 30
+};
+
+// М'яч
+var ball = {
+    x: width / 2,
+    y: height / 2,
+    radius: 8,
+    dx: 3,
+    dy: -3
+};
+
+// МАЗЕ (масив з блоками)
+const maze = [
+    [0, 0, 1, 1, 0, 1, 1, 0, 0, 0],
+    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+];
+
+// Розмір блоку
+const blockWidth = 40;
+const blockHeight = 15;
+const blockMargin = 2; // Відстань між блоками
+
+// Розміщуємо блоки відповідно до масиву `maze`
+var bricks = [];
+for (var r = 0; r < maze.length; r++) {
+    for (var c = 0; c < maze[r].length; c++) {
+        if (maze[r][c] === 1) {
+            let brickX = c * (blockWidth + blockMargin) + blockMargin;
+            let brickY = r * (blockHeight + blockMargin) + blockMargin;
+            if (brickX + blockWidth <= width && brickY + blockHeight <= height) {
+                bricks.push({
+                    x: brickX,
+                    y: brickY,
+                    width: blockWidth,
+                    height: blockHeight,
+                    visible: true
+                });
+            }
+        }
+    }
+}
+
+// Керування платформою
+var leftPressed = false;
+var rightPressed = false;
+
+document.addEventListener("keydown", function(e) {
+    if (e.key === "ArrowLeft") leftPressed = true;
+    if (e.key === "ArrowRight") rightPressed = true;
+});
+
+document.addEventListener("keyup", function(e) {
+    if (e.key === "ArrowLeft") leftPressed = false;
+    if (e.key === "ArrowRight") rightPressed = false;
+});
+
+// Малювання
+function drawPaddle() {
+    ctx.fillStyle = "gold";
+    ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+}
+
+function drawBall() {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "red";
+    ctx.fill();
+}
+
+function drawBricks() {
+    ctx.fillStyle = "darkred"; //колір блоків
+    for (var i = 0; i < bricks.length; i++) {
+        if (bricks[i].visible) {
+            ctx.fillRect(bricks[i].x, bricks[i].y, bricks[i].width, bricks[i].height);
+        }
+    }
+}
+
+// Малювання рамки
+function drawFrame() {
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 5;
+
+    // Верхня лінія
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(width, 0);
+    ctx.stroke();
+
+    // Ліва лінія
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, height);
+    ctx.stroke();
+
+    // Права лінія
+    ctx.beginPath();
+    ctx.moveTo(width, 0);
+    ctx.lineTo(width, height);
+    ctx.stroke();
+}
+
+// Колізії з блоками
+function collision() {
+    for (var i = 0; i < bricks.length; i++) {
+        if (bricks[i].visible) {
+            if (
+                ball.x + ball.radius > bricks[i].x &&
+                ball.x - ball.radius < bricks[i].x + bricks[i].width &&
+                ball.y + ball.radius > bricks[i].y &&
+                ball.y - ball.radius < bricks[i].y + bricks[i].height
+            ) {
+                ball.dy = -ball.dy; // Відскок м'яча
+                bricks[i].visible = false; // Зникає блок
+            }
+        }
+    }
+}
+
+// Перехід при виграші
+function checkWin() {
+    for (var i = 0; i < bricks.length; i++) {
+        if (bricks[i].visible) {
+            return false; // Якщо є хоч один видимий блок — ще не виграли
+        }
+    }
+    clearInterval(intervalId);
+
+// Пишемо текст для наступного рівня
+ctx.font = "55px Courier";
+ctx.fillStyle = "White";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+// Очищаємо всю область для тексту "Next Level!" і "Get Ready!"
+ctx.clearRect(0, 0, width, height); // Очищаємо весь екран або тільки частину, де малюємо текст
+
+ctx.fillText("Next Level!", width / 2, height / 2 - 100); // Текст "Next Level!" в центрі
+ctx.fillText("Get Ready!", width / 2, height / 2 - 40); // Текст "Get Ready!" під першим рядком
+
+// Таймер для відліку
+var timeLeft = 3;
+var countdownInterval = setInterval(function() {
+    // Очищаємо область, де буде новий відлік
+    ctx.clearRect(width / 2 - 40, height / 2, 80, 50); // Очищаємо область для числа
+
+    if (timeLeft > 0) {
+        // Малюємо нове значення відліку
+        ctx.fillText(`${timeLeft}`, width / 2, height / 2 + 30); // Виводимо залишок часу
+        timeLeft--;
+    } else {
+        clearInterval(countdownInterval); // Очищаємо інтервал після завершення
+        window.location.href = "index2.html"; // Переходимо на нову сторінку
+    }
+}, 1000);
+}
+
+// Оновлення гри
+var intervalId = setInterval(function() {
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Рух платформи
+    if (leftPressed && paddle.x > 0) {
+        paddle.x -= 5;
+    }
+    if (rightPressed && paddle.x + paddle.width < width) {
+        paddle.x += 5;
+    }
+
+    // Рух м'яча
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    // Обмеження швидкості м'яча
+    const maxSpeed = 4; // Обмежуємо швидкість м'яча
+    if (Math.abs(ball.dx) > maxSpeed) ball.dx = maxSpeed * Math.sign(ball.dx);
+    if (Math.abs(ball.dy) > maxSpeed) ball.dy = maxSpeed * Math.sign(ball.dy);
+
+    // Стіни
+    if (ball.x < 5 + ball.radius || ball.x > width - 5 - ball.radius) {
+        ball.dx = -ball.dx;
+    }
+    if (ball.y < 5 + ball.radius) {
+        ball.dy = -ball.dy;
+    }
+
+    // Платформа
+    if (
+        ball.y + ball.radius > paddle.y && // Перевірка чи м'яч знаходиться на рівні платформи
+        ball.x > paddle.x &&               // Перевірка чи м'яч знаходиться між лівим і правим краєм платформи
+        ball.x < paddle.x + paddle.width
+    ) {
+        // Коригуємо м'яч, щоб він не застрягав всередині
+        ball.dy = -ball.dy; // Зміна напрямку руху м'яча по вертикалі
+
+        // Якщо м'яч дуже швидко рухається по осі X і перетинає платформу
+        if (ball.y + ball.radius > paddle.y) {
+            ball.y = paddle.y - ball.radius; // М'яч не має бути всередині платформи
+        }
+
+        let paddleCenter = paddle.x + paddle.width / 2;
+        let ballPosition = ball.x - paddleCenter;
+        ball.dx = ball.dx + ballPosition / 10; // Змінюємо напрямок м'яча залежно від того, де він вдарив у платформу
+    }
+
+    // Блоки
+    collision();
+
+    // Перевірка на виграш
+    checkWin();
+
+    // Якщо м'яч падає за межі екрану, гра програна
+    if (ball.y > height) {
+        clearInterval(intervalId);
+        alert("Game Over");
+    }
+
+    // Малюємо
+    drawFrame();
+    drawPaddle();
+    drawBall();
+    drawBricks();
+
+}, 30); // Швидкість гри
+</script>
+
+</body>
+</html>
